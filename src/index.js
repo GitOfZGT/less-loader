@@ -1,18 +1,24 @@
 import path from "path";
+import fs from "fs";
 
 import less from "less";
 import { getOptions } from "loader-utils";
 import { validate } from "schema-utils";
 
 import schema from "./options.json";
-import { getLessOptions, isUnsupportedUrl, normalizeSourceMap } from "./utils";
+import {
+  getLessOptions,
+  isUnsupportedUrl,
+  normalizeSourceMap,
+  getScropProcessResult,
+} from "./utils";
 import LessError from "./LessError";
 
 async function lessLoader(source) {
   const options = getOptions(this);
 
   validate(schema, options, {
-    name: "Less Loader",
+    name: "Less More Loader",
     baseDataPath: "options",
   });
 
@@ -37,11 +43,33 @@ async function lessLoader(source) {
   }
 
   let result;
-
+  const preProcessor = (code) =>
+    (options.implementation || less).render(code, lessOptions);
+  const styleVarFiles = options.multipleScopeVars;
+  const allStyleVarFiles = Array.isArray(styleVarFiles)
+    ? styleVarFiles.filter(
+        (item) => item.name && item.path && fs.existsSync(path)
+      )
+    : [{ name: "", path: "" }];
   try {
-    result = await (options.implementation || less).render(data, lessOptions);
+    // result = await (options.implementation || less).render(data, lessOptions);
+    result = await Promise.all(
+      allStyleVarFiles.map((file) => {
+        const varscontent = file.path
+          ? fs.readFileSync(file.path).toString()
+          : "";
+        return preProcessor(`${data}\n${varscontent}`, lessOptions);
+      })
+    ).then((prs) =>
+      getScropProcessResult(
+        prs.map((item) => {
+          return { ...item, code: item.css, deps: item.imports };
+        }),
+        allStyleVarFiles
+      )
+    );
   } catch (error) {
-    if (error.filename) {
+    if (error && error.filename) {
       // `less` returns forward slashes on windows when `webpack` resolver return an absolute windows path in `WebpackFileManager`
       // Ref: https://github.com/webpack-contrib/less-loader/issues/357
       this.addDependency(path.normalize(error.filename));
@@ -52,8 +80,9 @@ async function lessLoader(source) {
     return;
   }
 
-  const { css, imports } = result;
-
+  // const { css, imports } = result;
+  const css = result.code;
+  const imports = result.deps;
   imports.forEach((item) => {
     if (isUnsupportedUrl(item)) {
       return;

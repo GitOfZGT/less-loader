@@ -200,5 +200,57 @@ function normalizeSourceMap(map) {
 
   return newMap;
 }
+const addScopeName = (css, scopeName) => {
+  const splitCodes = css.match(/\.[^{}]+{[^{}]*?}/g);
+  if (splitCodes && scopeName) {
+    const fragments = [];
+    const resultCode = splitCodes.reduce((codes, curr) => {
+      const replacerFragment = curr.replace(/\.[^{}]+(?={)/, (a) =>
+        a.split(",").reduce((tol, c) => tol.replace(c, `.${scopeName} ${c}`), a)
+      );
+      fragments.push(replacerFragment);
+      return codes.replace(curr, replacerFragment);
+    }, css);
+    return { cssCode: resultCode, sourceFragments: splitCodes, fragments };
+  }
+  return { cssCode: css, sourceFragments: splitCodes, fragments: splitCodes };
+};
 
-export { getLessOptions, isUnsupportedUrl, normalizeSourceMap };
+const getScropProcessResult = (lessResults = [], allStyleVarFiles = []) => {
+  const preprocessResult = { deps: [], code: "", errors: [] };
+  const fragmentsGroup = [];
+  const sourceFragmentsGroup = [];
+  lessResults.forEach((item, i) => {
+    const { fragments, sourceFragments } = addScopeName(
+      item.code,
+      allStyleVarFiles[i].scopeName
+    );
+    fragmentsGroup.push(fragments);
+    sourceFragmentsGroup.push(sourceFragments);
+    preprocessResult.errors = [
+      ...(preprocessResult.errors || []),
+      ...(item.errors || []),
+    ];
+    if (allStyleVarFiles[i].path) {
+      preprocessResult.deps.push(allStyleVarFiles[i].path);
+    }
+  });
+  if (lessResults.length && sourceFragmentsGroup.length) {
+    preprocessResult.code = sourceFragmentsGroup[0].reduce(
+      (tol, curr, i) =>
+        tol.replace(curr, () => fragmentsGroup.map((g) => g[i]).join("\n")),
+      lessResults[0].code
+    );
+  }
+  preprocessResult.map = lessResults[0].map;
+  preprocessResult.deps = [...preprocessResult.deps, ...lessResults[0].deps];
+  return preprocessResult;
+};
+
+export {
+  getLessOptions,
+  isUnsupportedUrl,
+  normalizeSourceMap,
+  addScopeName,
+  getScropProcessResult,
+};
