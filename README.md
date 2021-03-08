@@ -143,7 +143,7 @@ src/components/Button/style.css
 
 ## 使用 Css Modules
 
-如果是模块化的 less，得到的 csse 类似：
+如果是模块化的 less，得到的 css 类似：
 
 ```css
 .src-components-ContentWrapper-style_theme-default-3CPvz
