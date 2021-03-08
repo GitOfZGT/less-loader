@@ -36,6 +36,10 @@
     "implementation": {
       "description": "The implementation of the `Less` to be used (https://github.com/webpack-contrib/less-loader#implementation).",
       "type": "object"
+    },
+    "multipleScopeVars": {
+      "description": "The multipleScopeVars of the `Less` to be used (https://github.com/GitOfZGT/less-loader).",
+      "type": "array"
     }
   },
   "additionalProperties": false

@@ -79,5 +79,8 @@
     "less.js",
     "css",
     "preprocessor"
-  ]
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  }
 }

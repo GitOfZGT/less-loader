@@ -1,3 +1,249 @@
+# @zougt/less-loader
+
+fork 自[webpack-contrib/less-loader](https://github.com/webpack-contrib/less-loader)，在`less-loader`的基础上增加了`multipleScopeVars`属性，用于根据多个 less 变量文件编译出多种添加了权重类名的样式（不得不修改 less-loader 的源码达到此目的）
+
+> 没有添加`multipleScopeVars`属性时，`@zougt/less-loader`跟`less-loader`是一致的  
+> `@zougt/less-loader v7.4.0+` 对应 `less-loader v7.3.0+`  
+> `@zougt/less-loader v8.1.0+` 对应 `less-loader v8.0.0+`
+
+## 使用
+
+```console
+$ npm install less @zougt/less-loader --save-dev
+```
+
+在 webpack.config.js 使用`less-loader`的地方替换成`@zougt/less-loader`, 并添加`multipleScopeVars`属性
+
+```js
+const path = require("path");
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.less$/i,
+        // loader: "less-loader",
+        loader: "@zougt/less-loader",
+        options: {
+          multipleScopeVars: [
+            {
+              scopeName: "theme-default",
+              path: path.resolve("src/theme/default-vars.less"),
+            },
+            {
+              scopeName: "theme-mauve",
+              path: path.resolve("src/theme/mauve-vars.less"),
+            },
+          ],
+        },
+      },
+    ],
+  },
+};
+```
+
+## 示例
+
+```less
+//src/theme/default-vars.less
+@primary-color: #0081ff;
+```
+
+```less
+//src/theme/mauve-vars.less
+@primary-color: #9c26b0;
+```
+
+```less
+//src/components/Button/style.less
+@import "../../theme/default-vars";
+.un-btn {
+  position: relative;
+  display: inline-block;
+  font-weight: 400;
+  white-space: nowrap;
+  text-align: center;
+  border: 1px solid transparent;
+  background-color: @primary-color;
+  .anticon {
+    line-height: 1;
+  }
+}
+```
+
+编译之后
+
+src/components/Button/style.css
+
+```css
+.theme-default .un-btn {
+  position: relative;
+  display: inline-block;
+  font-weight: 400;
+  white-space: nowrap;
+  text-align: center;
+  border: 1px solid transparent;
+  background-color: #0081ff;
+}
+.theme-mauve .un-btn {
+  position: relative;
+  display: inline-block;
+  font-weight: 400;
+  white-space: nowrap;
+  text-align: center;
+  border: 1px solid transparent;
+  background-color: #9c26b0;
+}
+.theme-default .un-btn .anticon {
+  line-height: 1;
+}
+.theme-mauve .un-btn .anticon {
+  line-height: 1;
+}
+```
+
+冗余的 css 通过[postcss-loader](https://github.com/webpack-contrib/postcss-loader)的插件[cssnano](https://github.com/cssnano/cssnano)合并
+
+```css
+.theme-default .un-btn,
+.theme-mauve .un-btn {
+  position: relative;
+  display: inline-block;
+  font-weight: 400;
+  white-space: nowrap;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.theme-default .un-btn {
+  background-color: #0081ff;
+}
+.theme-mauve .un-btn {
+  background-color: #9c26b0;
+}
+.theme-default .un-btn .anticon,
+.theme-mauve .un-btn .anticon {
+  line-height: 1;
+}
+```
+
+在`html`中改变 classname 切换主题
+
+```html
+<!DOCTYPE html>
+<html lang="zh" class="theme-default">
+  <head>
+    <meta charset="utf-8" />
+    <title>title</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <!-- built files will be auto injected -->
+  </body>
+</html>
+```
+
+## 使用 Css Modules
+
+如果是模块化的 less，得到的 css 类似：
+
+```css
+.src-components-ContentWrapper-style_theme-default-3CPvz
+  .src-components-ContentWrapper-style_content-wrapper-1n85E,
+.src-components-ContentWrapper-style_theme-mauve-3yajX
+  .src-components-ContentWrapper-style_content-wrapper-1n85E {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+```
+
+实际需要的结果应该是这样：
+
+```css
+.theme-default .src-components-ContentWrapper-style_content-wrapper-1n85E,
+.theme-mauve .src-components-ContentWrapper-style_content-wrapper-1n85E {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+```
+
+在 webpack.config.js 需要对`css-loader` (v4.0+) 的 modules 属性修改:
+
+```js
+const path = require("path");
+const { interpolateName } = require("loader-utils");
+function normalizePath(file) {
+  return path.sep === "\\" ? file.replace(/\\/g, "/") : file;
+}
+const multipleScopeVars = [
+  {
+    scopeName: "theme-default",
+    path: path.resolve("src/theme/default-vars.less"),
+  },
+  {
+    scopeName: "theme-mauve",
+    path: path.resolve("src/theme/mauve-vars.less"),
+  },
+];
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.module.less$/i,
+        use: [
+          {
+            loader: "css-loader",
+            options: {
+              importLoaders: 1,
+              modules: {
+                localIdentName: "[path][name]_[local]-[hash:base64:5]",
+                //使用 getLocalIdent 自定义模块化名称 ， css-loader v4.0+
+                getLocalIdent: (
+                  loaderContext,
+                  localIdentName,
+                  localName,
+                  options
+                ) => {
+                  if (
+                    multipleScopeVars.some(
+                      (item) => item.scopeName === localName
+                    )
+                  ) {
+                    //localName 属于 multipleScopeVars 的不用模块化
+                    return localName;
+                  }
+                  const { context, hashPrefix } = options;
+                  const { resourcePath } = loaderContext;
+                  const request = normalizePath(
+                    path.relative(context, resourcePath)
+                  );
+                  // eslint-disable-next-line no-param-reassign
+                  options.content = `${hashPrefix + request}\x00${localName}`;
+                  const inname = interpolateName(
+                    loaderContext,
+                    localIdentName,
+                    options
+                  );
+
+                  return inname.replace(/\\?\[local\\?]/gi, localName);
+                },
+              },
+            },
+          },
+          {
+            // loader: "less-loader",
+            loader: "@zougt/less-loader",
+            options: {
+              multipleScopeVars,
+            },
+          },
+        ],
+      },
+    ],
+  },
+};
+```
+
+# **以下是 less-loader 原文档**
+
 <div align="center">
   <a href="https://github.com/webpack/webpack">
     <img width="200" height="200" src="https://webpack.js.org/assets/icon-square-big.svg">
