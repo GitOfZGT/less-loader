@@ -200,20 +200,33 @@ function normalizeSourceMap(map) {
 
   return newMap;
 }
+
+const cssFragReg = /\.[^{}/\\]+{[^{}]*?}/g;
+const classNameFragReg = /\.[^{}/\\]+(?={)/;
 const addScopeName = (css, scopeName) => {
-  const splitCodes = css.match(/\.[^{}]+{[^{}]*?}/g);
-  if (splitCodes && scopeName) {
+  const splitCodes = css.match(cssFragReg) || [];
+
+  if (splitCodes.length && scopeName) {
     const fragments = [];
     const resultCode = splitCodes.reduce((codes, curr) => {
-      const replacerFragment = curr.replace(/\.[^{}]+(?={)/, (a) =>
+      const replacerFragment = curr.replace(classNameFragReg, (a) =>
         a.split(",").reduce((tol, c) => tol.replace(c, `.${scopeName} ${c}`), a)
       );
       fragments.push(replacerFragment);
       return codes.replace(curr, replacerFragment);
     }, css);
-    return { cssCode: resultCode, sourceFragments: splitCodes, fragments };
+    return {
+      cssCode: resultCode,
+      sourceFragments: splitCodes,
+      fragments,
+    };
   }
-  return { cssCode: css, sourceFragments: splitCodes, fragments: splitCodes };
+
+  return {
+    cssCode: css,
+    sourceFragments: splitCodes,
+    fragments: splitCodes,
+  };
 };
 
 const getScropProcessResult = (lessResults = [], allStyleVarFiles = []) => {
@@ -241,9 +254,10 @@ const getScropProcessResult = (lessResults = [], allStyleVarFiles = []) => {
         tol.replace(curr, () => fragmentsGroup.map((g) => g[i]).join("\n")),
       lessResults[0].code
     );
+    preprocessResult.map = lessResults[0].map;
+    preprocessResult.deps = [...preprocessResult.deps, ...lessResults[0].deps];
   }
-  preprocessResult.map = lessResults[0].map;
-  preprocessResult.deps = [...preprocessResult.deps, ...lessResults[0].deps];
+
   return preprocessResult;
 };
 

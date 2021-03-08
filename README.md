@@ -1,14 +1,18 @@
-# less-more-loader
+# @zougt/less-loader
 
 fork 自[webpack-contrib/less-loader](https://github.com/webpack-contrib/less-loader)，在`less-loader`的基础上增加了`multipleScopeVars`属性，用于根据多个 less 变量文件编译出多种添加了权重类名的样式（不得不修改 less-loader 的源码达到此目的）
+
+> 没有添加`multipleScopeVars`属性时，`@zougt/less-loader`跟`less-loader`是一致的  
+> `@zougt/less-loader v7.4.0+` 对应 `less-loader v7.3.0+`  
+> `@zougt/less-loader v8.1.0+` 对应 `less-loader v8.0.0+`
 
 ## 使用
 
 ```console
-$ npm install less less-more-loader --save-dev
+$ npm install less @zougt/less-loader --save-dev
 ```
 
-在 webpack.config.js 使用`less-loader`的地方替换成`less-more-loader`, 并添加`multipleScopeVars`属性
+在 webpack.config.js 使用`less-loader`的地方替换成`@zougt/less-loader`, 并添加`multipleScopeVars`属性
 
 ```js
 const path = require("path");
@@ -18,7 +22,7 @@ module.exports = {
       {
         test: /\.less$/i,
         // loader: "less-loader",
-        loader: "less-more-loader",
+        loader: "@zougt/less-loader",
         options: {
           multipleScopeVars: [
             {
@@ -137,9 +141,106 @@ src/components/Button/style.css
 </html>
 ```
 
-> 没有添加`multipleScopeVars`属性时，`less-more-loader`跟`less-loader`是一致的  
-> `less-more-loader v7.3.0+` 对应 `less-loader v7.3.0+`  
-> `less-more-loader v8.0.0+` 对应 `less-loader v8.0.0+`
+## 使用 Css Modules
+
+如果是模块化的 less，得到的 csse 类似：
+
+```css
+.src-components-ContentWrapper-style_theme-default-3CPvz
+  .src-components-ContentWrapper-style_content-wrapper-1n85E,
+.src-components-ContentWrapper-style_theme-mauve-3yajX
+  .src-components-ContentWrapper-style_content-wrapper-1n85E {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+```
+
+实际需要的结果应该是这样：
+
+```css
+.theme-default .src-components-ContentWrapper-style_content-wrapper-1n85E,
+.theme-mauve .src-components-ContentWrapper-style_content-wrapper-1n85E {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+```
+
+在 webpack.config.js 需要对`css-loader` (v4.0+) 的 modules 属性修改:
+
+```js
+const path = require("path");
+const { interpolateName } = require("loader-utils");
+function normalizePath(file) {
+  return path.sep === "\\" ? file.replace(/\\/g, "/") : file;
+}
+const multipleScopeVars = [
+  {
+    scopeName: "theme-default",
+    path: path.resolve("src/theme/default-vars.less"),
+  },
+  {
+    scopeName: "theme-mauve",
+    path: path.resolve("src/theme/mauve-vars.less"),
+  },
+];
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.module.less$/i,
+        use: [
+          {
+            loader: "css-loader",
+            options: {
+              importLoaders: 1,
+              modules: {
+                localIdentName: "[path][name]_[local]-[hash:base64:5]",
+                //使用 getLocalIdent 自定义模块化名称 ， css-loader v4.0+
+                getLocalIdent: (
+                  loaderContext,
+                  localIdentName,
+                  localName,
+                  options
+                ) => {
+                  if (
+                    multipleScopeVars.some(
+                      (item) => item.scopeName === localName
+                    )
+                  ) {
+                    //localName 属于 multipleScopeVars 的不用模块化
+                    return localName;
+                  }
+                  const { context, hashPrefix } = options;
+                  const { resourcePath } = loaderContext;
+                  const request = normalizePath(
+                    path.relative(context, resourcePath)
+                  );
+                  // eslint-disable-next-line no-param-reassign
+                  options.content = `${hashPrefix + request}\x00${localName}`;
+                  const inname = interpolateName(
+                    loaderContext,
+                    localIdentName,
+                    options
+                  );
+
+                  return inname.replace(/\\?\[local\\?]/gi, localName);
+                },
+              },
+            },
+          },
+          {
+            // loader: "less-loader",
+            loader: "@zougt/less-loader",
+            options: {
+              multipleScopeVars,
+            },
+          },
+        ],
+      },
+    ],
+  },
+};
+```
 
 # **以下是 less-loader 原文档**
 

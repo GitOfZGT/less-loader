@@ -48,9 +48,9 @@ async function lessLoader(source) {
   const styleVarFiles = options.multipleScopeVars;
   const allStyleVarFiles = Array.isArray(styleVarFiles)
     ? styleVarFiles.filter(
-        (item) => item.name && item.path && fs.existsSync(path)
+        (item) => item.scopeName && item.path && fs.existsSync(item.path)
       )
-    : [{ name: "", path: "" }];
+    : [{ scopeName: "", path: "" }];
   try {
     // result = await (options.implementation || less).render(data, lessOptions);
     result = await Promise.all(
