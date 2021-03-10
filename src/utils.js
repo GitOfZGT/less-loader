@@ -1,4 +1,5 @@
 import path from "path";
+import fs from "fs";
 
 import less from "less";
 import { klona } from "klona/full";
@@ -201,8 +202,42 @@ function normalizeSourceMap(map) {
   return newMap;
 }
 
-const cssFragReg = /\.[^{}/\\]+{[^{}]*?}/g;
-const classNameFragReg = /\.[^{}/\\]+(?={)/;
+const getAllStyleVarFiles = (loaderContext, options) => {
+  const styleVarFiles = options.multipleScopeVars;
+  let allStyleVarFiles = [{ scopeName: "", path: "" }];
+  if (Array.isArray(styleVarFiles)) {
+    allStyleVarFiles = styleVarFiles.filter((item) => {
+      if (!item.scopeName) {
+        loaderContext.emitError(
+          new Error("Not found scopeName in Sass multipleScopeVars")
+        );
+        return false;
+      }
+      if (Array.isArray(item.path)) {
+        return item.path.every((pathstr) => {
+          const exists = pathstr && fs.existsSync(pathstr);
+          if (!exists) {
+            loaderContext.emitError(
+              new Error(`Not found path: ${pathstr} in Sass multipleScopeVars`)
+            );
+          }
+          return exists;
+        });
+      }
+      if (!item.path || typeof path !== "string") {
+        loaderContext.emitError(
+          new Error(`Not found path: ${item.path} in Sass multipleScopeVars`)
+        );
+        return false;
+      }
+      return true;
+    });
+  }
+  return allStyleVarFiles;
+};
+
+const cssFragReg = /[[#.][^{}/\\]+{[^{}]*?}/g;
+const classNameFragReg = /[[#.][^{}/\\]+(?={)/;
 const addScopeName = (css, scopeName) => {
   const splitCodes = css.match(cssFragReg) || [];
 
@@ -229,11 +264,11 @@ const addScopeName = (css, scopeName) => {
   };
 };
 
-const getScropProcessResult = (lessResults = [], allStyleVarFiles = []) => {
+const getScropProcessResult = (cssResults = [], allStyleVarFiles = []) => {
   const preprocessResult = { deps: [], code: "", errors: [] };
   const fragmentsGroup = [];
   const sourceFragmentsGroup = [];
-  lessResults.forEach((item, i) => {
+  cssResults.forEach((item, i) => {
     const { fragments, sourceFragments } = addScopeName(
       item.code,
       allStyleVarFiles[i].scopeName
@@ -244,18 +279,23 @@ const getScropProcessResult = (lessResults = [], allStyleVarFiles = []) => {
       ...(preprocessResult.errors || []),
       ...(item.errors || []),
     ];
-    if (allStyleVarFiles[i].path) {
-      preprocessResult.deps.push(allStyleVarFiles[i].path);
-    }
+    const deps = Array.isArray(allStyleVarFiles[i].path)
+      ? allStyleVarFiles[i].path
+      : [allStyleVarFiles[i].path];
+    deps.forEach((str) => {
+      if (str) {
+        preprocessResult.deps.push(str);
+      }
+    });
   });
-  if (lessResults.length && sourceFragmentsGroup.length) {
+  if (cssResults.length && sourceFragmentsGroup.length) {
     preprocessResult.code = sourceFragmentsGroup[0].reduce(
       (tol, curr, i) =>
         tol.replace(curr, () => fragmentsGroup.map((g) => g[i]).join("\n")),
-      lessResults[0].code
+      cssResults[0].code
     );
-    preprocessResult.map = lessResults[0].map;
-    preprocessResult.deps = [...preprocessResult.deps, ...lessResults[0].deps];
+    preprocessResult.map = cssResults[0].map;
+    preprocessResult.deps = [...preprocessResult.deps, ...cssResults[0].deps];
   }
 
   return preprocessResult;
@@ -265,6 +305,7 @@ export {
   getLessOptions,
   isUnsupportedUrl,
   normalizeSourceMap,
+  getAllStyleVarFiles,
   addScopeName,
   getScropProcessResult,
 };

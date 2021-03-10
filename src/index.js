@@ -11,6 +11,7 @@ import {
   isUnsupportedUrl,
   normalizeSourceMap,
   getScropProcessResult,
+  getAllStyleVarFiles,
 } from "./utils";
 import LessError from "./LessError";
 
@@ -45,12 +46,7 @@ async function lessLoader(source) {
   let result;
   const preProcessor = (code) =>
     (options.implementation || less).render(code, lessOptions);
-  const styleVarFiles = options.multipleScopeVars;
-  const allStyleVarFiles = Array.isArray(styleVarFiles)
-    ? styleVarFiles.filter(
-        (item) => item.scopeName && item.path && fs.existsSync(item.path)
-      )
-    : [{ scopeName: "", path: "" }];
+  const allStyleVarFiles = getAllStyleVarFiles(this, options);
   try {
     // result = await (options.implementation || less).render(data, lessOptions);
     result = await Promise.all(
@@ -58,7 +54,12 @@ async function lessLoader(source) {
         const varscontent = file.path
           ? fs.readFileSync(file.path).toString()
           : "";
-        return preProcessor(`${data}\n${varscontent}`, lessOptions);
+        return preProcessor(
+          `${data}\n${varscontent
+            .replace(/\$(?=[^{:]+:;?)/g, "$")
+            .replace(/!default/g, "")}`,
+          lessOptions
+        );
       })
     ).then((prs) =>
       getScropProcessResult(
