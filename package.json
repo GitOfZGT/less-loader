@@ -3,7 +3,7 @@
   "version": "7.4.1",
   "description": "A Less loader for webpack. Compiles Less to CSS.",
   "license": "MIT",
-  "repository": "webpack-contrib/less-loader",
+  "repository": "GitOfZGT/less-loader",
   "author": "Johannes Ewald @jhnns",
   "homepage": "https://github.com/GitOfZGT/less-loader",
   "bugs": "https://github.com/GitOfZGT/less-loader/issues",

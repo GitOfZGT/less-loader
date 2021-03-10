@@ -209,7 +209,7 @@ const getAllStyleVarFiles = (loaderContext, options) => {
     allStyleVarFiles = styleVarFiles.filter((item) => {
       if (!item.scopeName) {
         loaderContext.emitError(
-          new Error("Not found scopeName in Sass multipleScopeVars")
+          new Error("Not found scopeName in less-loader multipleScopeVars")
         );
         return false;
       }
@@ -218,15 +218,23 @@ const getAllStyleVarFiles = (loaderContext, options) => {
           const exists = pathstr && fs.existsSync(pathstr);
           if (!exists) {
             loaderContext.emitError(
-              new Error(`Not found path: ${pathstr} in Sass multipleScopeVars`)
+              new Error(
+                `Not found path: ${pathstr} in less-loader multipleScopeVars`
+              )
             );
           }
           return exists;
         });
       }
-      if (!item.path || typeof path !== "string") {
+      if (
+        !item.path ||
+        typeof item.path !== "string" ||
+        !fs.existsSync(item.path)
+      ) {
         loaderContext.emitError(
-          new Error(`Not found path: ${item.path} in Sass multipleScopeVars`)
+          new Error(
+            `Not found path: ${item.path} in less-loader multipleScopeVars`
+          )
         );
         return false;
       }
@@ -236,8 +244,8 @@ const getAllStyleVarFiles = (loaderContext, options) => {
   return allStyleVarFiles;
 };
 
-const cssFragReg = /[[#.][^{}/\\]+{[^{}]*?}/g;
-const classNameFragReg = /[[#.][^{}/\\]+(?={)/;
+const cssFragReg = /[^{}/\\]+{[^{}]*?}/g;
+const classNameFragReg = /[^{}/\\]+(?={)/;
 const addScopeName = (css, scopeName) => {
   const splitCodes = css.match(cssFragReg) || [];
 
@@ -245,7 +253,12 @@ const addScopeName = (css, scopeName) => {
     const fragments = [];
     const resultCode = splitCodes.reduce((codes, curr) => {
       const replacerFragment = curr.replace(classNameFragReg, (a) =>
-        a.split(",").reduce((tol, c) => tol.replace(c, `.${scopeName} ${c}`), a)
+        a.split(",").reduce((tol, c) => {
+          if (/^html/i.test(c)) {
+            return tol;
+          }
+          return tol.replace(c, `.${scopeName} ${c}`);
+        }, a)
       );
       fragments.push(replacerFragment);
       return codes.replace(curr, replacerFragment);
@@ -300,7 +313,25 @@ const getScropProcessResult = (cssResults = [], allStyleVarFiles = []) => {
 
   return preprocessResult;
 };
+const replaceFormSass = (url) => {
+  let code = fs.readFileSync(url).toString();
+  if (/\.(scss|sass)$/i.test(url)) {
+    code = code.replace(/\$/g, "@").replace(/!default/g, "");
+  }
+  return code;
+};
 
+const getVarsContent = (url) => {
+  let content = "";
+  if (Array.isArray(url)) {
+    url.forEach((p) => {
+      content += replaceFormSass(p);
+    });
+  } else {
+    content = replaceFormSass(url);
+  }
+  return content;
+};
 export {
   getLessOptions,
   isUnsupportedUrl,
@@ -308,4 +339,5 @@ export {
   getAllStyleVarFiles,
   addScopeName,
   getScropProcessResult,
+  getVarsContent,
 };

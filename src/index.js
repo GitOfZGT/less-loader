@@ -1,5 +1,4 @@
 import path from "path";
-import fs from "fs";
 
 import less from "less";
 import { getOptions } from "loader-utils";
@@ -12,6 +11,7 @@ import {
   normalizeSourceMap,
   getScropProcessResult,
   getAllStyleVarFiles,
+  getVarsContent,
 } from "./utils";
 import LessError from "./LessError";
 
@@ -51,15 +51,8 @@ async function lessLoader(source) {
     // result = await (options.implementation || less).render(data, lessOptions);
     result = await Promise.all(
       allStyleVarFiles.map((file) => {
-        const varscontent = file.path
-          ? fs.readFileSync(file.path).toString()
-          : "";
-        return preProcessor(
-          `${data}\n${varscontent
-            .replace(/\$(?=[^{:]+:;?)/g, "$")
-            .replace(/!default/g, "")}`,
-          lessOptions
-        );
+        const varscontent = getVarsContent(file.path);
+        return preProcessor(`${data}\n${varscontent}`, lessOptions);
       })
     ).then((prs) =>
       getScropProcessResult(

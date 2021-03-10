@@ -14,6 +14,18 @@ $ npm install less @zougt/less-loader --save-dev
 
 在 webpack.config.js 使用`less-loader`的地方替换成`@zougt/less-loader`, 并添加`multipleScopeVars`属性
 
+### multipleScopeVars
+
+Type `object[]`
+
+#### multipleScopeVars[].scopeName
+
+Type `string`
+
+#### multipleScopeVars[].path
+
+Type `string | string[]`
+
 ```js
 const path = require("path");
 module.exports = {
@@ -125,7 +137,7 @@ src/components/Button/style.css
 }
 ```
 
-在`html`中改变 classname 切换主题
+在`html`中改变 classname 切换主题，只作用于 html 标签 ：
 
 ```html
 <!DOCTYPE html>
