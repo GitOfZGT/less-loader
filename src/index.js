@@ -2,15 +2,14 @@ import path from "path";
 
 import less from "less";
 
-import schema from "./options.json";
 import {
-  getLessOptions,
-  isUnsupportedUrl,
-  normalizeSourceMap,
   getScropProcessResult,
   getAllStyleVarFiles,
   getVarsContent,
-} from "./utils";
+} from "@zougt/some-loader-utils";
+
+import schema from "./options.json";
+import { getLessOptions, isUnsupportedUrl, normalizeSourceMap } from "./utils";
 import LessError from "./LessError";
 
 async function lessLoader(source) {
