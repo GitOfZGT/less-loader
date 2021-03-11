@@ -314,7 +314,7 @@ const getScropProcessResult = (cssResults = [], allStyleVarFiles = []) => {
   return preprocessResult;
 };
 const replaceFormSass = (url) => {
-  let code = fs.readFileSync(url).toString();
+  let code = url ? fs.readFileSync(url).toString() : "";
   if (/\.(scss|sass)$/i.test(url)) {
     code = code.replace(/\$/g, "@").replace(/!default/g, "");
   }
