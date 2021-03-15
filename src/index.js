@@ -50,7 +50,8 @@ async function lessLoader(source) {
         prs.map((item) => {
           return { ...item, code: item.css, deps: item.imports };
         }),
-        allStyleVarFiles
+        allStyleVarFiles,
+        this.resourcePath
       )
     );
   } catch (error) {
