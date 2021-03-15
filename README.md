@@ -87,37 +87,7 @@ module.exports = {
 src/components/Button/style.css
 
 ```css
-.theme-default .un-btn {
-  position: relative;
-  display: inline-block;
-  font-weight: 400;
-  white-space: nowrap;
-  text-align: center;
-  border: 1px solid transparent;
-  background-color: #0081ff;
-}
-.theme-mauve .un-btn {
-  position: relative;
-  display: inline-block;
-  font-weight: 400;
-  white-space: nowrap;
-  text-align: center;
-  border: 1px solid transparent;
-  background-color: #9c26b0;
-}
-.theme-default .un-btn .anticon {
-  line-height: 1;
-}
-.theme-mauve .un-btn .anticon {
-  line-height: 1;
-}
-```
-
-冗余的 css 通过[postcss-loader](https://github.com/webpack-contrib/postcss-loader)的插件[cssnano](https://github.com/cssnano/cssnano)合并
-
-```css
-.theme-default .un-btn,
-.theme-mauve .un-btn {
+.un-btn {
   position: relative;
   display: inline-block;
   font-weight: 400;
@@ -131,8 +101,7 @@ src/components/Button/style.css
 .theme-mauve .un-btn {
   background-color: #9c26b0;
 }
-.theme-default .un-btn .anticon,
-.theme-mauve .un-btn .anticon {
+.un-btn .anticon {
   line-height: 1;
 }
 ```
@@ -159,21 +128,23 @@ src/components/Button/style.css
 
 ```css
 .src-components-ContentWrapper-style_theme-default-3CPvz
-  .src-components-ContentWrapper-style_content-wrapper-1n85E,
+  .src-components-ContentWrapper-style_un-btn-1n85E {
+  background-color: #0081ff;
+}
 .src-components-ContentWrapper-style_theme-mauve-3yajX
-  .src-components-ContentWrapper-style_content-wrapper-1n85E {
-  max-width: 1400px;
-  margin: 0 auto;
+  .src-components-ContentWrapper-style_un-btn-1n85E {
+  background-color: #9c26b0;
 }
 ```
 
 实际需要的结果应该是这样：
 
 ```css
-.theme-default .src-components-ContentWrapper-style_content-wrapper-1n85E,
-.theme-mauve .src-components-ContentWrapper-style_content-wrapper-1n85E {
-  max-width: 1400px;
-  margin: 0 auto;
+.theme-default .src-components-ContentWrapper-style_un-btn-1n85E {
+  background-color: #0081ff;
+}
+.theme-mauve .src-components-ContentWrapper-style_un-btn-1n85E {
+  background-color: #9c26b0;
 }
 ```
 
@@ -206,7 +177,10 @@ module.exports = {
             options: {
               importLoaders: 1,
               modules: {
-                localIdentName: "[path][name]_[local]-[hash:base64:5]",
+                localIdentName:
+                  process.env.NODE_ENV === "production"
+                    ? "[hash:base64:5]"
+                    : "[path][name]_[local]-[hash:base64:5]",
                 //使用 getLocalIdent 自定义模块化名称 ， css-loader v4.0+
                 getLocalIdent: (
                   loaderContext,
