@@ -1,4 +1,7 @@
+
 # @zougt/less-loader
+
+**此包停止维护，请使用[@zougt/some-loader-utils](https://github.com/GitOfZGT/some-loader-utils)**
 
 fork 自[webpack-contrib/less-loader](https://github.com/webpack-contrib/less-loader)，在`less-loader`的基础上增加了`multipleScopeVars`属性，用于根据多个 less 变量文件编译出多种添加了权重类名的样式（不得不修改 less-loader 的源码达到此目的）
 
